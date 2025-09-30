@@ -393,14 +393,6 @@ az container exec --resource-group osaa-data-pipeline --name osaa-data-pipeline 
 - [ ] Update dependencies regularly
 - [ ] Test disaster recovery procedures
 
-## 🤝 Contributing
-
-This is a UN internal project. For contributions:
-1. Follow UN security guidelines
-2. Test all changes thoroughly
-3. Update documentation
-4. Submit through proper UN channels
-
 ## 📄 License
 
 This project is for internal UN use only. See LICENSE file for details.
