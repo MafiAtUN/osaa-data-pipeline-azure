@@ -3,7 +3,7 @@ gateways:
     connection:
       type: duckdb
       database: unosaa_data_pipeline.db
-      # Configure DuckDB with httpfs extension for S3 access
+      # Configure DuckDB with httpfs extension for Azure Blob Storage access
       extensions: ['httpfs']
 
   shared_state:

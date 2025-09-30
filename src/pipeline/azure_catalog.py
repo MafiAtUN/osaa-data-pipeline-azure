@@ -1,7 +1,7 @@
-"""Catalog module for managing data catalog and metadata.
+"""Azure catalog module for managing data catalog and metadata.
 
 This module provides functionality for creating and managing
-data catalog entries and metadata for the United Nations OSAA MVP project.
+data catalog entries and metadata for the United Nations OSAA MVP project using Azure Blob Storage.
 """
 
 from typing import Any
@@ -9,25 +9,28 @@ from typing import Any
 import ibis
 
 from pipeline.logging_config import create_logger, log_exception
+from pipeline.azure_utils import azure_blob_path_to_url
 
 # Set up logging
 logger = create_logger(__name__)
 
 
-def save_s3(table_exp: ibis.Expr, s3_path: str) -> None:
-    """Save the Ibis table expression to S3 as a Parquet file.
+def save_azure_blob(table_exp: ibis.Expr, blob_path: str) -> None:
+    """Save the Ibis table expression to Azure Blob Storage as a Parquet file.
 
     Args:
         table_exp: Ibis table expression to be saved.
-        s3_path: The full S3 path where the Parquet file will be saved.
+        blob_path: The blob path where the Parquet file will be saved.
     """
     try:
-        table_exp.to_parquet(s3_path)
-        logger.info(f"📤 Table successfully uploaded to S3 path: {s3_path}")
+        # Convert blob path to full Azure URL
+        azure_url = azure_blob_path_to_url(blob_path)
+        table_exp.to_parquet(azure_url)
+        logger.info(f"📤 Table successfully uploaded to Azure Blob Storage: {azure_url}")
         logger.info(f"   🔍 Table details: {table_exp}")
 
     except Exception as e:
-        log_exception(logger, e, context="S3 Upload")
+        log_exception(logger, e, context="Azure Blob Storage Upload")
         raise
 
 
@@ -65,4 +68,4 @@ def save_parquet(table_exp: ibis.Expr, local_path: str) -> None:
         raise
 
 
-# TODO: Function to save the data remotely to motherduck
+# TODO: Function to save the data remotely to Azure SQL Database or other Azure services

@@ -1,0 +1,65 @@
+name: Build and Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_CONTAINER_REGISTRY: osaadatapipelineacr.azurecr.io
+  CONTAINER_NAME: osaa-data-pipeline
+  RESOURCE_GROUP: osaa-data-pipeline
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Build and push image to Azure Container Registry
+      run: |
+        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} --image osaa-data-pipeline:${{ github.sha }} .
+        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} --image osaa-data-pipeline:latest .
+    
+    - name: Deploy to Azure Container Instances
+      if: github.ref == 'refs/heads/main'
+      run: |
+        az container create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CONTAINER_NAME }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}/osaa-data-pipeline:${{ github.sha }} \
+          --cpu 2 \
+          --memory 4 \
+          --registry-login-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
+          --dns-name-label osaa-data-pipeline \
+          --ports 8080 \
+          --environment-variables \
+            AZURE_STORAGE_CONTAINER_NAME=${{ secrets.AZURE_STORAGE_CONTAINER_NAME }} \
+            ENABLE_AZURE_UPLOAD=true \
+            TARGET=prod \
+            GATEWAY=local \
+            DB_PATH=/app/sqlMesh/unosaa_data_pipeline.db \
+            UI_PORT=8080 \
+          --secure-environment-variables \
+            AZURE_STORAGE_CONNECTION_STRING=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }} \
+            AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
+            AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }} \
+            AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }} \
+            AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+    
+    - name: Run ETL Pipeline
+      if: github.ref == 'refs/heads/main'
+      run: |
+        az container exec \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CONTAINER_NAME }} \
+          --exec-command "/app/entrypoint.sh etl"

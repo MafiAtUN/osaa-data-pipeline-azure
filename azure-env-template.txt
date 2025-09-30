@@ -1,0 +1,36 @@
+# Azure Blob Storage Configuration Template
+# Copy this file to .env and update with your Azure credentials
+
+# Option 1: Connection String (Recommended for development)
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=yourkey==;EndpointSuffix=core.windows.net
+
+# Option 2: Service Principal (Recommended for production)
+AZURE_CLIENT_ID=your-client-id
+AZURE_CLIENT_SECRET=your-client-secret
+AZURE_TENANT_ID=your-tenant-id
+AZURE_STORAGE_ACCOUNT_NAME=yourstorageaccount
+
+# Azure Blob Storage Settings
+AZURE_STORAGE_CONTAINER_NAME=osaa-data-pipeline
+ENABLE_AZURE_UPLOAD=true
+
+# Environment Configuration
+TARGET=dev
+USERNAME=default
+GATEWAY=local
+
+# UI Configuration
+UI_PORT=8080
+
+# Database Configuration
+DB_PATH=/app/sqlMesh/unosaa_data_pipeline.db
+
+# Development Settings
+RAW_DATA_DIR=/app/data/raw
+DRY_RUN_FLG=false
+
+# Security Configuration
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=ChangeThisPassword123!
+APP_SECRET_KEY=your-secret-key-here
+FLASK_SECRET_KEY=your-flask-secret-key-here

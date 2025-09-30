@@ -1,0 +1,131 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "logicAppName": {
+      "type": "string",
+      "defaultValue": "osaa-mvp-scheduler",
+      "metadata": {
+        "description": "Name of the Logic App"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "osaa-mvp-rg",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    },
+    "containerName": {
+      "type": "string",
+      "defaultValue": "osaa-mvp",
+      "metadata": {
+        "description": "Name of the Azure Container Instance"
+      }
+    },
+    "subscriptionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure subscription ID"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2019-05-01",
+      "name": "[parameters('logicAppName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "containerResourceGroup": {
+              "type": "string",
+              "defaultValue": "[parameters('resourceGroupName')]"
+            },
+            "containerName": {
+              "type": "string",
+              "defaultValue": "[parameters('containerName')]"
+            }
+          },
+          "triggers": {
+            "Daily_ETL_Trigger": {
+              "type": "Recurrence",
+              "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "startTime": "2024-01-01T06:00:00Z",
+                "timeZone": "UTC"
+              },
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "runs": 1
+                }
+              }
+            }
+          },
+          "actions": {
+            "Run_ETL_Pipeline": {
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionId'), '/resourceGroups/', parameters('containerResourceGroup'), '/providers/Microsoft.ContainerInstance/containerGroups/', parameters('containerName'), '/execute?api-version=2021-09-01')]",
+                "headers": {
+                  "Authorization": "@parameters('$connections')['azuremanagement']['connectionId']"
+                },
+                "body": {
+                  "command": "/app/entrypoint.sh etl"
+                }
+              },
+              "runAfter": {}
+            },
+            "Check_ETL_Status": {
+              "type": "Http",
+              "inputs": {
+                "method": "GET",
+                "uri": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionId'), '/resourceGroups/', parameters('containerResourceGroup'), '/providers/Microsoft.ContainerInstance/containerGroups/', parameters('containerName'), '?api-version=2021-09-01')]",
+                "headers": {
+                  "Authorization": "@parameters('$connections')['azuremanagement']['connectionId']"
+                }
+              },
+              "runAfter": {
+                "Run_ETL_Pipeline": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Send_Notification": {
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+                "body": {
+                  "text": "OSAA MVP ETL pipeline completed successfully"
+                }
+              },
+              "runAfter": {
+                "Check_ETL_Status": [
+                  "Succeeded"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuremanagement": {
+                "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/azuremanagement",
+                "connectionName": "azuremanagement",
+                "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/azuremanagement"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

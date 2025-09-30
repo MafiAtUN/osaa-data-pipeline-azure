@@ -68,47 +68,55 @@ def get_sql_model_schema(evaluator, sql_file_name, folder_path_from_models_folde
 
 
 @macro()
-def s3_read(
+def azure_blob_read(
     evaluator: t.Any, subfolder_filename: t.Union[str, exp.Expression]
 ) -> exp.Literal:
-    """Generate S3 path for reading data from the landing zone.
+    """Generate Azure Blob Storage path for reading data from the landing zone.
 
     Args:
         evaluator: SQLMesh macro evaluator
         subfolder_filename: Subfolder and filename without extension (e.g. 'edu/OPRI_LABEL')
 
     Returns:
-        S3 path as SQLGlot string literal
-        Example: 's3://bucket/dev/dev_user/landing/edu/OPRI_LABEL.parquet'
+        Azure Blob Storage path as SQLGlot string literal
+        Example: 'az://container/dev/dev_user/landing/edu/OPRI_LABEL.parquet'
 
     Environment:
-        S3_BUCKET_NAME (str): Bucket name (default: "unosaa-data-pipeline")
+        AZURE_STORAGE_CONTAINER_NAME (str): Container name (default: "osaa-data-pipeline")
+        AZURE_STORAGE_ACCOUNT_NAME (str): Storage account name
         TARGET (str): prod or dev (default: "dev")
     """
-    bucket = os.environ.get("S3_BUCKET_NAME", "unosaa-data-pipeline")
+    container = os.environ.get("AZURE_STORAGE_CONTAINER_NAME", "osaa-data-pipeline")
+    account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
     target = os.environ.get("TARGET", "dev").lower()
 
     # Convert input to string if it's a SQLGlot expression
     if isinstance(subfolder_filename, exp.Expression):
         subfolder_filename = str(subfolder_filename).strip("'")
 
-    path = f"s3://{bucket}/{target}/landing/{subfolder_filename}.parquet"
+    if account_name:
+        path = f"az://{account_name}/{container}/{target}/landing/{subfolder_filename}.parquet"
+    else:
+        # Fallback to using container directly if account name is not available
+        path = f"az://{container}/{target}/landing/{subfolder_filename}.parquet"
+    
     return exp.Literal.string(path)
 
 
 @macro()
-def s3_write(evaluator: MacroEvaluator) -> str:
-    """Generate COPY statement for writing model data to the staging zone.
+def azure_blob_write(evaluator: MacroEvaluator) -> str:
+    """Generate COPY statement for writing model data to the staging zone in Azure Blob Storage.
 
     Args:
         evaluator: SQLMesh macro evaluator containing model context
 
     Returns:
-        DuckDB COPY statement
-        Example: COPY (SELECT * FROM table) TO 's3://bucket/dev/staging/source/table.parquet'
+        DuckDB COPY statement for Azure Blob Storage
+        Example: COPY (SELECT * FROM table) TO 'az://account/container/dev/staging/source/table.parquet'
 
     Environment:
-        S3_BUCKET_NAME (str): Bucket name (default: "unosaa-data-pipeline")
+        AZURE_STORAGE_CONTAINER_NAME (str): Container name (default: "osaa-data-pipeline")
+        AZURE_STORAGE_ACCOUNT_NAME (str): Storage account name
         TARGET (str): prod or dev (default: "dev")
         USERNAME (str): Used in dev paths (default: "default")
         DRY_RUN_FLG (str): Enable/disable dry run (default: "false")
@@ -119,14 +127,15 @@ def s3_write(evaluator: MacroEvaluator) -> str:
     # Check if dry run is enabled
     dry_run_flg = os.environ.get("DRY_RUN_FLG", "false").lower() == "true"
     if dry_run_flg:
-        return None  # Return empty string to skip S3 upload
+        return None  # Return empty string to skip Azure upload
 
     # Handling the dynamic nature of the schema/table name in sqlmesh
     # It changes depending on the runtime stage. 
     if evaluator.locals.get("runtime_stage") != "loading":
        
         # Get environment variables
-        bucket = os.environ.get("S3_BUCKET_NAME", "unosaa-data-pipeline")
+        container = os.environ.get("AZURE_STORAGE_CONTAINER_NAME", "osaa-data-pipeline")
+        account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
         target = os.environ.get("TARGET", "dev").lower()
         username = os.environ.get("USERNAME", "default").lower()
 
@@ -142,14 +151,21 @@ def s3_write(evaluator: MacroEvaluator) -> str:
         schema_path = "master" if schema == "master" else "_metadata" if schema == "_metadata" else "source"
         dir = schema + "/" if schema != schema_path else ""
 
-        # Construct S3 path
-        if target == "dev":
-            s3_path = f"s3://{bucket}/dev/staging/{env_path}/{schema_path}/{dir}{table_name}.parquet"    
+        # Construct Azure Blob Storage path
+        if account_name:
+            if target == "dev":
+                azure_path = f"az://{account_name}/{container}/dev/staging/{env_path}/{schema_path}/{dir}{table_name}.parquet"    
+            else:
+                azure_path = f"az://{account_name}/{container}/{env_path}/staging/{schema_path}/{dir}{table_name}.parquet"
         else:
-            s3_path = f"s3://{bucket}/{env_path}/staging/{schema_path}/{dir}{table_name}.parquet"
+            # Fallback without account name
+            if target == "dev":
+                azure_path = f"az://{container}/dev/staging/{env_path}/{schema_path}/{dir}{table_name}.parquet"    
+            else:
+                azure_path = f"az://{container}/{env_path}/staging/{schema_path}/{dir}{table_name}.parquet"
 
         # Build the SQL statement
-        sql = f"""COPY (SELECT * FROM {this_model}) TO '{s3_path}' (FORMAT PARQUET)"""
+        sql = f"""COPY (SELECT * FROM {this_model}) TO '{azure_path}' (FORMAT PARQUET)"""
 
         return sql
 

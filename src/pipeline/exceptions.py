@@ -57,6 +57,33 @@ class S3ConfigurationError(S3OperationError):
     pass
 
 
+class AzureOperationError(PipelineBaseError):
+    """
+    Raised for Azure Blob Storage-specific operation errors.
+
+    Covers issues such as:
+    - Authentication failures
+    - Connection problems
+    - File upload/download errors
+    - Container or blob access issues
+    """
+
+    pass
+
+
+class AzureConfigurationError(AzureOperationError):
+    """
+    Raised for Azure configuration or connection issues.
+
+    Covers problems with:
+    - Azure credentials
+    - Azure Blob Service Client initialization
+    - Access configuration
+    """
+
+    pass
+
+
 class IngestError(PipelineBaseError):
     """
     Raised during the data ingestion process.

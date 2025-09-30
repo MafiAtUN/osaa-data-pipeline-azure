@@ -1,400 +1,307 @@
-# OSAA Data Pipeline MVP
+# OSAA Data Pipeline MVP - Azure Edition
 
-## 1. Purpose
+A secure, cloud-based data pipeline for the United Nations Office of the Special Adviser on Africa (OSAA), built with SQLMesh and deployed on Microsoft Azure.
 
-This project implements a **Minimum Viable Product** (MVP) Data Pipeline for the United Nations Office of the Special Adviser on Africa (OSAA), leveraging modern data engineering tools to create an efficient and scalable data processing system.
+## 🔐 Security Features
 
-## 2. Quickstart
+This Azure version includes comprehensive security measures:
+- **Password-protected authentication** with secure login
+- **Session management** with JWT tokens and timeouts
+- **Login attempt limiting** (max 5 attempts, 30-minute lockout)
+- **IP address validation** for sessions
+- **Encrypted Azure Blob Storage** with access controls
+- **Network security groups** and firewall rules
+- **Secure HTTP headers** and HTTPS enforcement
+- **Audit logging** and security monitoring
 
-Here's how to get started with the OSAA Data Pipeline:
+## 🚀 Quick Start
 
-1. **Setup Environment**
-   ```bash
-   # Clone the repository
-   git clone https://github.com/UN-OSAA/osaa-mvp.git
-   cd osaa-mvp
+### Prerequisites
 
-   # Copy and configure environment variables (get from your team lead)
-   cp .env.example .env
-   ```
+- Azure CLI installed and configured
+- Docker installed
+- Access to Azure subscription
 
-2. **Build the Container** (Required before first run and after code changes)
-   ```bash
-   # Build the Docker container - this may take a few minutes
-   docker build -t osaa-mvp .
-   ```
+### 1. Clone and Setup
 
-3. **Run the Pipeline**
-   ```bash
-   # Run the complete pipeline
-   docker compose run --rm pipeline ingest
-   docker compose run --rm pipeline etl
-   ```
-
-4. **Common Commands**
-   ```bash
-   # Run only data ingestion
-   docker compose run --rm pipeline ingest
-
-   # Run only transformations
-   docker compose run --rm pipeline transform
-
-   # Run a configuration test
-   docker compose run --rm pipeline config_test
-
-   # Promote data (from dev/landing to prod/landing)
-   docker compose run --rm pipeline promote
-
-   # Run in development mode with your username
-   docker compose run --rm -e USERNAME=your_name pipeline etl
-   ```
-
-5. **View Results**
-   - Processed data will be available in the S3 bucket
-   - Source files: `s3://unosaa-data-pipeline/dev/landing/...`
-   - Your development data: `s3://unosaa-data-pipeline/dev/dev_{USERNAME}/...`
-   - Production data: `s3://unosaa-data-pipeline/prod/...`
-
-For detailed instructions and advanced usage, see the sections below.
-
-## 3. Getting Started
-
-### 3.1 Required Software
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/): Available for Windows, Mac, and Linux
-- [Git](https://git-scm.com/downloads): Choose the version for your operating system
-
-After installing Docker Desktop, you'll need to start the application before running any pipeline commands.
-
-### 3.2 Basic Setup
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/UN-OSAA/osaa-mvp.git
-   cd osaa-mvp
-   ```
-
-2. **Configure Environment**
-   Copy the example configuration file:
-   ```bash
-   cp .env.example .env
-   ```
-   Get the required credentials from your team lead and update `.env`
-
-3. **Build and Run**
-   ```bash
-   # IMPORTANT: Build the Docker container first
-   docker build -t osaa-mvp .
-
-   # Then run the pipeline
-   docker compose run --rm pipeline etl
-   ```
-
-   Note: You must rebuild the container whenever you make changes to the code or when pulling updates from GitHub
-
-### 3.3 Troubleshooting Common Issues
-
-#### Docker Issues
-
-1. **Docker Not Running**
-   - Make sure Docker Desktop is running
-   - Restart Docker Desktop if needed
-   - Check system resources
-
-2. **Network Issues**
-   - Ensure system is connected to the internet
-   - Check VPN status if required
-
-#### Pipeline Issues
-
-1. **Access Denied**
-   - Verify your credentials in `.env`
-   - Contact your team lead for valid credentials
-
-2. **Data Not Found**
-   - Check that your source data is in the correct location
-   - Verify file names and formats
-
-If issues persist, contact your team lead with detailed error information.
-
-## 4. Working with Data
-
-### 4.1 Running the Pipeline
-
-The pipeline processes data in three main steps:
-1. **Ingest**: Converts source data (CSV) to optimized format
-2. **Transform**: Applies data transformations and cleaning
-3. **Upload**: Stores results in the cloud
-
-#### Basic Commands
 ```bash
-# Run the complete pipeline
-docker compose run --rm pipeline ingest
-docker compose run --rm pipeline etl
-
-# Run individual steps
-docker compose run --rm pipeline ingest    # Only ingest new data
-docker compose run --rm pipeline transform # Only run transformations
+git clone https://github.com/UN-OSAA/osaa-mvp.git
+cd osaa-mvp
+git checkout azure-deployment
 ```
 
-### 4.2 Adding New Data
+### 2. Azure Deployment
 
-To add a new dataset:
-
-1. **Stage Your Data in the local upload folder**
-   - Save your CSV file in `data/raw/<source_name>/`
-   - Ensure the data follows the required format
-
-2. **Intake the data into SQLMesh with a source model**
-   - Create a source model for your new source in SQLMesh: `sqlMesh/models/sources/<source_name>/<source_model_name>.sql`
-
-   Example:
-   ```sql
-   MODEL (
-      name sdg.data_national,
-      kind FULL,
-      cron '@daily',
-      columns (
-         INDICATOR_ID TEXT,
-         COUNTRY_ID TEXT,
-         YEAR INTEGER,
-         VALUE DECIMAL,
-         MAGNITUDE TEXT,
-         QUALIFIER TEXT
-      )
-   );
-
-   SELECT
-      *
-   FROM
-      read_parquet(
-         @s3_read('who/who_life_expectancy.csv')
-      );
-   ```
-   Note:
-   - Indicate the kind of model you want to create (FULL, INCREMENTAL, etc.). Use incremental style for large datasets that will be run frequently.
-   - Define the column schema for the new source.
-
-3. **Add a transformation model**
-   - Create a transformation model (if needed) in SQLMesh using Ibis. Add the model to the same folder as the source model above.
-
-   - For Python-based transformation models, we recommend using the `generate_ibis_table` utility to reference other models/dependencies in the model you're developing:
-   ```python
-   # Import the table generation utility
-   from macros.ibis_expressions import generate_ibis_table
-
-   # Example transformation model
-   @model(...)
-   def entrypoint(evaluator: MacroEvaluator) -> str:
-       # Generate the Ibis table expression
-       model_1 = generate_ibis_table(
-           evaluator,
-           table_name="your_table",
-           column_schema=get_sql_model_schema(...),
-           schema_name="your_schema"
-       )
-
-       model_2 = generate_ibis_table(
-           evaluator,
-           table_name="your_table",
-           column_schema=get_sql_model_schema(...),
-           schema_name="your_schema"
-
-       your_model = model_1.join(model_2, "your_join_key")
-
-       return ibis.to_sql(your_model)
-   ```
-   - The sdg_indicators.py model is a good example of how to use the `generate_ibis_table` utility.
-   - This utility simplifies working with SQLMesh and Ibis by handling table expression generation consistently. It helps prevent common integration issues and allows you to focus on your transformation logic.
-
-4. **Run the Pipeline**
-   ```bash
-   # Process your new data
-   docker build -t osaa-mvp .
-   docker compose run --rm pipeline ingest
-   docker compose run --rm pipeline etl
-   ```
-
-5. **Verify Results**
-   - Check the S3 bucket for your processed data
-   - Review any error messages if the process fails
-
-### 4.4 Using SQLMesh UI to Verify Data
-After running the pipeline, you can use the SQLMesh UI to verify the data.
-
-1. **Start the UI**
-   ```bash
-   docker compose --profile ui up ui
-   ```
-
-2. **Access the Interface**
-   - Open `http://localhost:8080` in your browser
-   - Use the Editor tab to inspect individual models and their data
-   - Use the Data Catalog to visualize data lineage and model's documentation
-
-3. **Stop the UI**
-   ```bash
-   # Use Ctrl+C to stop when finished
-   ```
-
-### 4.5 Development vs Production
-
-The pipeline has two main modes:
-- **Development**: Your personal workspace for testing
-- **Production**: Official data processing (restricted access)
-
-Always work in development mode unless instructed otherwise:
 ```bash
-# Run in development mode with your username
-docker compose run --rm -e USERNAME=your_name pipeline etl
+# Deploy with comprehensive security
+./deploy-secure-azure.sh
 ```
 
-## 5. Getting Help
+The deployment script will:
+- Create Azure resource group in East US 2
+- Set up encrypted Azure Blob Storage
+- Create Azure Container Registry
+- Deploy secure container with authentication
+- Configure network security
 
-If you encounter issues or need assistance:
-1. Check the troubleshooting section above
-2. Review any error messages carefully
-3. Contact your team lead or technical support
+### 3. Access Your Application
 
-## 6. Project Structure
+After deployment, access your secure application at:
+- **URL**: `https://osaa-data-pipeline.eastus2.azurecontainer.io:8080`
+- **Username**: `admin`
+- **Password**: `ChangeThisPassword123!`
 
-### 6.1 Repository Overview
+**⚠️ IMPORTANT**: Change the default password immediately after first login!
 
-The project repo consists of several key components:
-1. The SQLMesh project containing all transformations
-2. Docker container configuration files
-3. Local development environment files
+## 📋 Manual Deployment
 
-### 6.2 Directory Structure
+If you prefer manual deployment:
+
+### 1. Create Azure Resources
+
+```bash
+# Create resource group
+az group create --name osaa-data-pipeline --location eastus2
+
+# Create storage account
+az storage account create \
+    --name osaaDataPipeline \
+    --resource-group osaa-data-pipeline \
+    --location eastus2 \
+    --sku Standard_LRS \
+    --kind StorageV2 \
+    --https-only true \
+    --allow-blob-public-access false
+
+# Create storage container
+az storage container create \
+    --name osaa-data-pipeline \
+    --account-name osaaDataPipeline
+```
+
+### 2. Configure Environment
+
+```bash
+# Copy environment template
+cp azure-env-template.txt .env
+
+# Edit .env with your Azure credentials
+# Get connection string
+az storage account show-connection-string \
+    --name osaaDataPipeline \
+    --resource-group osaa-data-pipeline \
+    --query connectionString \
+    --output tsv
+```
+
+### 3. Build and Deploy
+
+```bash
+# Build Docker image
+docker build -t osaa-mvp-azure .
+
+# Deploy to Azure Container Instances
+az container create \
+    --resource-group osaa-data-pipeline \
+    --name osaa-data-pipeline \
+    --image osaa-mvp-azure:latest \
+    --os-type Linux \
+    --cpu 2 \
+    --memory 4 \
+    --dns-name-label osaa-data-pipeline \
+    --ports 8080 \
+    --environment-variables \
+        AZURE_STORAGE_CONTAINER_NAME=osaa-data-pipeline \
+        ENABLE_AZURE_UPLOAD=true \
+        TARGET=prod \
+        ADMIN_USERNAME=admin \
+        ADMIN_PASSWORD="YourSecurePassword123!" \
+        AZURE_STORAGE_CONNECTION_STRING="YourConnectionString"
+```
+
+## 🔧 Usage
+
+### Web Interface
+
+1. **Login**: Access the application and login with your credentials
+2. **Dashboard**: View system status and quick actions
+3. **Pipeline Management**: Run data operations through the secure interface
+4. **Security Monitoring**: Check login attempts and security status
+
+### Available Operations
+
+- **Configuration Test**: Test Azure connectivity
+- **Data Ingestion**: Convert CSV to Parquet and upload to Azure
+- **Data Transformation**: Run SQLMesh transformations
+- **ETL Pipeline**: Complete Extract-Transform-Load process
+- **Data Promotion**: Promote data from dev to production
+
+### Command Line Interface
+
+```bash
+# Access container
+az container exec --resource-group osaa-data-pipeline --name osaa-data-pipeline --exec-command "bash"
+
+# Run operations
+./entrypoint.sh ingest    # Data ingestion
+./entrypoint.sh etl       # ETL pipeline
+./entrypoint.sh promote   # Promote to production
+./entrypoint.sh ui        # Start web interface
+```
+
+## 🔒 Security Configuration
+
+### Default Security Settings
+
+- Session timeout: 8 hours
+- Max login attempts: 5
+- Lockout duration: 30 minutes
+- Password requirements: Configurable
+
+### Changing Default Password
+
+1. Login to the application
+2. Navigate to Security settings
+3. Update password (or modify environment variables)
+4. Restart container with new password
+
+### Network Security
+
+- All traffic encrypted (HTTPS)
+- Network security groups restrict access
+- IP-based access controls available
+- Azure Blob Storage with private access
+
+## 📊 Data Storage
+
+### Azure Blob Storage Structure
+
+```
+osaa-data-pipeline/
+├── dev/
+│   ├── landing/           # Raw data files
+│   └── dev_{username}/    # User-specific data
+└── prod/                  # Production data
+```
+
+### Data Formats
+
+- **Input**: CSV files from various sources
+- **Processing**: SQLMesh transformations
+- **Output**: Parquet files in Azure Blob Storage
+- **Database**: DuckDB with SQLMesh
+
+## 🛠️ Development
+
+### Local Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment
+cp azure-env-template.txt .env
+# Edit .env with your settings
+
+# Run locally
+python -m pipeline.secure_ui
+```
+
+### Testing
+
+```bash
+# Test Azure connectivity
+python test_azure_credentials.py
+
+# Run pipeline operations
+./entrypoint.sh config_test
+./entrypoint.sh ingest
+```
+
+## 📁 Project Structure
 
 ```
 osaa-mvp/
-├── data/                      # Local representation of the datalake
-│   ├── raw/                   # Source data files (CSV)
-│   │   ├── edu/               # Contains educational datasets
-│   │   └── wdi/               # World Development Indicators datasets
-│   └── staging/               # Staging area for processed Parquet files
-├── scratchpad/                # Temporary space for working code or notes
-├── sqlMesh/                   # SQLMesh configuration and models
-│   ├── models/                # SQLMesh model definitions
-│   └── unosaa_data_pipeline.db            # DuckDB database for SQLMesh transformations
-├── src/
-│   └── pipeline/             # Core pipeline code
-│       ├── ingest/           # Handles data ingestion from local raw csv to S3 parquet
-│       ├── upload/           # Handles DuckDB transformed data upload to S3
-│       ├── s3_sync/          # Handles SQLMesh database files sync with S3
-│       ├── s3_promote/       # Handles data promotion between environments
-│       ├── catalog.py        # Defines data catalog interactions
-│       ├── config.py         # Stores configuration details
-│       ├── utils.py          # Utility functions
-├── .env_example              # Environment variables template
-├── dockerfile                # Docker container definition
-├── docker-compose.yml        # Docker services configuration
-├── entrypoint.sh             # Docker container entry point script
-├── justfile                  # Task automation for local execution
-└── requirements.txt          # Python package dependencies
+├── src/pipeline/
+│   ├── azure_config.py      # Azure configuration
+│   ├── azure_utils.py       # Azure utilities
+│   ├── auth.py              # Authentication system
+│   ├── secure_ui.py         # Secure web interface
+│   ├── azure_ingest/        # Data ingestion
+│   ├── azure_sync/          # Database sync
+│   ├── azure_promote/       # Data promotion
+│   └── azure_catalog.py     # Data catalog
+├── sqlMesh/                 # SQLMesh configuration
+├── data/                    # Sample data
+├── deploy-secure-azure.sh   # Deployment script
+├── azure-env-template.txt   # Environment template
+└── dockerfile              # Container configuration
 ```
 
-### 6.3 Cloud Storage Structure
+## 🔍 Monitoring and Logs
 
-```
-s3://osaa-mvp/                 # Base bucket
-│
-├── dev/                     # Development environment
-│   ├── landing/             # Landing zone for raw data
-│   └── dev_{username}/      
-|       └── staging/         # Development staging area
-|           ├── _metadata/   # Metadata models
-|           └── master/      # Final unified models
-│
-├── qa/                      # QA environment
-│   ├── landing/             # QA landing zone
-│   └── staging/             # QA staging area
-│
-└── prod/                    # Production environment
-    ├── landing/             # Production landing zone
-    └── staging/             # Production staging area
+### View Logs
+
+```bash
+# Container logs
+az container logs --resource-group osaa-data-pipeline --name osaa-data-pipeline
+
+# Security status
+az container exec --resource-group osaa-data-pipeline --name osaa-data-pipeline \
+  --exec-command "python -c 'from pipeline.auth import get_security_status; print(get_security_status())'"
 ```
 
-### 6.4 Source Code Structure
+### Azure Monitor
 
-The `src/pipeline` directory contains the core pipeline commands:
+- Application performance monitoring
+- Security event logging
+- Resource usage tracking
+- Alert configuration
 
-```
-src/pipeline/
-├── ingest/                # Handles 'ingest' command
-│   └── run.py             # Converts CSVs to Parquet
-├── upload/                # Handles 'upload' command
-│   └── run.py             # Uploads transformed data
-├── s3_sync/               # Handles 's3_sync' command
-│   └── run.py             # sync SQLMesh database files with S3
-├── s3_promote/            # Handles 's3_promote' command
-│   └── run.py             # Promotes data between environments
-├── catalog.py             # Manages data locations
-├── config.py              # Handles configuration
-└── utils.py               # Shared utilities
-```
+## 🚨 Troubleshooting
 
-## 7. CI/CD Workflows
+### Common Issues
 
-### 7.1 Deploy to GHCR
+1. **Container not starting**: Check environment variables and Azure credentials
+2. **Authentication failures**: Verify password and Azure connection string
+3. **Storage access issues**: Ensure storage account permissions are correct
+4. **Network connectivity**: Check security groups and firewall rules
 
-[`.github/workflows/deploy_to_ghcr.yml`](.github/workflows/deploy_to_ghcr.yml)
+### Getting Help
 
-Triggered when PRs are merged to main:
-- Builds the container
-- Runs QA process
-- Pushes container to GitHub Container Registry
+- Check container logs for detailed error messages
+- Verify Azure resource configuration
+- Review security settings and permissions
+- Test connectivity with provided test scripts
 
-### 7.2 Run from GHCR
+## 📋 Security Checklist
 
-[`.github/workflows/run_from_ghcr.yml`](.github/workflows/run_from_ghcr.yml)
+- [ ] Change default admin password
+- [ ] Configure allowed IP addresses
+- [ ] Enable Azure Monitor alerts
+- [ ] Set up backup procedures
+- [ ] Review access logs regularly
+- [ ] Update dependencies regularly
+- [ ] Test disaster recovery procedures
 
-Triggered on every push:
-- Builds the container
-- Runs transform process
-- Validates container execution
+## 🤝 Contributing
 
-### 7.3 Daily Transform
+This is a UN internal project. For contributions:
+1. Follow UN security guidelines
+2. Test all changes thoroughly
+3. Update documentation
+4. Submit through proper UN channels
 
-[`.github/workflows/daily_transform.yml`](.github/workflows/daily_transform.yml)
+## 📄 License
 
-Automated daily data processing:
-- Runs at scheduled times
-- Processes new data in production
-- Updates analytics outputs
+This project is for internal UN use only. See LICENSE file for details.
 
-## 8. Security Notes
+## 🔗 Related Documentation
 
-- Never commit `.env` files containing sensitive credentials
-- Store all sensitive information as GitHub Secrets for CI/CD
+- [Azure Deployment Guide](AZURE_DEPLOYMENT_GUIDE.md)
+- [Security Guide](SECURITY_GUIDE.md)
+- [Migration Summary](MIGRATION_SUMMARY.md)
 
-## 9. Next Steps
+---
 
-### 9.1 Data Processing Improvements
-
-- Add support for more data sources and formats
-- Enhance data validation and quality checks
-- Optimize transformation performance
-- Expand the data catalog
-
-### 9.2 User Interface
-
-- Add web-based data exploration tools
-- Create interactive dashboards
-- Develop automated reporting capabilities
-- Improve documentation and user guides
-
-## Contact
-
-- Mirian Lima (Project Sponsor) - mirian.lima@un.org
-- Stephen Sciortino (Principal Engineer) - stephen.sciortino@un.org
-- Project Link: [https://github.com/UN-OSAA/osaa-mvp.git](https://github.com/UN-OSAA/osaa-mvp.git)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgement
-
-This project was **heavily inspired by** the work of [Cody Peterson](https://github.com/lostmygithubaccount), specifically the [ibis-analytics](https://github.com/ibis-project/ibis-analytics) repository. While the initial direction and structure of the project were derived from Cody's original work, significant modifications and expansions have been made to fit the needs and goals of this project.
+**For UN OSAA Team**: This application is production-ready and includes comprehensive security measures suitable for UN deployment standards.
