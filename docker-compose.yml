@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  osaa-data-pipeline:
+    build: .
+    container_name: osaa-data-pipeline
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount local data directory for persistent storage
+      - ./data:/app/data
+      - ./sqlMesh:/app/sqlMesh
+      - ./output:/app/output
+    environment:
+      # Azure Configuration (optional - leave empty for local-only mode)
+      - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME:-}
+      - AZURE_STORAGE_CONTAINER_NAME=${AZURE_STORAGE_CONTAINER_NAME:-}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET:-}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-}
+      
+      # Local Storage Configuration
+      - ENABLE_AZURE_UPLOAD=${ENABLE_AZURE_UPLOAD:-false}
+      - LOCAL_DATA_PATH=/app/data
+      - LOCAL_OUTPUT_PATH=/app/output
+      
+      # Application Configuration
+      - TARGET=${TARGET:-dev}
+      - USERNAME=${USERNAME:-default}
+      - GATEWAY=${GATEWAY:-local}
+      - DB_PATH=/app/sqlMesh/unosaa_data_pipeline.db
+      - UI_PORT=8080
+      
+      # Security Configuration
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-ChangeThisPassword123!}
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-your-secret-key-here}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-your-flask-secret-key-here}
+      
+      # Raw Data Directory
+      - RAW_DATA_DIR=/app/data/raw
+      - DRY_RUN_FLG=${DRY_RUN_FLG:-false}
+    restart: unless-stopped
+    command: ["ui"]  # Start with web interface by default

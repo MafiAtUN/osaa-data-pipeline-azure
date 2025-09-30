@@ -26,6 +26,7 @@ This version includes the following changes from the original AWS implementation
 - Automated CI/CD pipeline
 - Azure Monitor integration for observability
 - Container-based deployment for consistency
+- **Flexible storage options**: Local filesystem or Azure Blob Storage
 
 ## 🔐 Security Features
 
@@ -43,23 +44,106 @@ This Azure version includes comprehensive security measures:
 
 ### Prerequisites
 
-- Azure CLI installed and configured
-- Docker installed
-- Access to Azure subscription
+- Docker and Docker Compose installed
+- Azure CLI installed and configured (for cloud deployment)
+- Access to Azure subscription (for cloud deployment)
 
-### 1. Clone and Setup
+### 1. Local Docker Deployment
+
+For local development and testing with Docker:
 
 ```bash
-git clone https://github.com/UN-OSAA/osaa-mvp.git
-cd osaa-mvp
-git checkout azure-deployment
+# Clone the repository
+git clone https://github.com/MafiAtUN/osaa-data-pipeline-azure.git
+cd osaa-data-pipeline-azure
+
+# Run the Docker setup script
+./docker-setup.sh
+
+# Start the application
+docker-compose up -d
+
+# Access the web interface
+open http://localhost:8080
 ```
 
-### 2. Azure Deployment
+**Default credentials:**
+- Username: `admin`
+- Password: `ChangeThisPassword123!`
+
+**Local data storage:**
+- Input data: `./data/`
+- Processed results: `./output/`
+- Database files: `./sqlMesh/`
+
+### 2. Docker Commands
+
+```bash
+# Start the application
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+
+# Access container shell
+docker-compose exec osaa-data-pipeline bash
+
+# Run specific commands
+docker-compose exec osaa-data-pipeline /app/entrypoint.sh ingest
+docker-compose exec osaa-data-pipeline /app/entrypoint.sh etl
+docker-compose exec osaa-data-pipeline /app/entrypoint.sh promote
+```
+
+### 3. Azure Cloud Deployment
 
 ```bash
 # Deploy with comprehensive security
 ./deploy-secure-azure.sh
+```
+
+### 4. GitHub Actions Deployment
+
+The repository includes automated Docker deployment via GitHub Actions:
+
+- **Automatic builds** on push to main/azure-deployment branches
+- **Multi-architecture support** (AMD64 and ARM64)
+- **Automated testing** on pull requests
+- **Azure deployment** on main branch pushes
+
+**Setup GitHub Actions:**
+1. Add `AZURE_CREDENTIALS` secret to your repository
+2. Push to main branch to trigger deployment
+3. Monitor deployment in GitHub Actions tab
+
+## 💾 Storage Configuration
+
+The application supports two storage modes:
+
+### Local Storage Mode (Default for Docker)
+- **Data stored locally** in mounted volumes
+- **No Azure credentials required**
+- **Perfect for development and testing**
+- **Set `ENABLE_AZURE_UPLOAD=false` in .env**
+
+### Azure Blob Storage Mode
+- **Data stored in Azure Blob Storage**
+- **Requires Azure credentials**
+- **Suitable for production deployments**
+- **Set `ENABLE_AZURE_UPLOAD=true` and provide Azure credentials**
+
+**Configuration:**
+```bash
+# Local mode (default)
+ENABLE_AZURE_UPLOAD=false
+
+# Azure mode
+ENABLE_AZURE_UPLOAD=true
+AZURE_STORAGE_ACCOUNT_NAME=your-storage-account
+AZURE_STORAGE_CONTAINER_NAME=your-container
+AZURE_STORAGE_CONNECTION_STRING=your-connection-string
 ```
 
 The deployment script will:

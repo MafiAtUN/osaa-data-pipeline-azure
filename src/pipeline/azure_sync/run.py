@@ -13,13 +13,14 @@ from azure.core.exceptions import ResourceNotFoundError
 
 from pipeline.exceptions import AzureOperationError
 from pipeline.logging_config import create_logger
-from pipeline.azure_config import AZURE_STORAGE_CONTAINER_NAME
+from pipeline.azure_config import AZURE_STORAGE_CONTAINER_NAME, ENABLE_AZURE_UPLOAD
 from pipeline.azure_utils import (
     azure_blob_init,
     download_file_from_azure_blob,
     upload_file_to_azure_blob,
     blob_exists
 )
+from pipeline.local_storage import ensure_local_directories, get_local_paths
 
 logger = create_logger(__name__)
 
@@ -37,6 +38,25 @@ def sync_db_with_azure_blob(operation: str, db_path: str, container_name: str, b
         AzureOperationError: If Azure operations fail
     """
     try:
+        # Check if Azure upload is enabled
+        if not ENABLE_AZURE_UPLOAD:
+            logger.info("🏠 Azure upload disabled - using local storage only")
+            ensure_local_directories()
+            
+            if operation == "download":
+                logger.info(f"📥 Local mode: Ensuring DB exists at: {db_path}")
+                # In local mode, just ensure the directory exists
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                if not os.path.exists(db_path):
+                    logger.info("📝 Creating new empty database file for local mode")
+                    Path(db_path).touch()
+                logger.info(f"✅ Local DB ready at: {db_path}")
+            elif operation == "upload":
+                logger.info(f"📤 Local mode: DB saved locally at: {db_path}")
+                logger.info(f"✅ Local storage operation completed")
+            return
+
+        # Azure mode operations
         if operation == "download":
             logger.info("Attempting to download DB from Azure Blob Storage...")
             try:
