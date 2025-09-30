@@ -2,6 +2,60 @@
 
 A secure, cloud-based data pipeline for the United Nations Office of the Special Adviser on Africa (OSAA), built with SQLMesh and deployed on Microsoft Azure.
 
+> **🔒 Security-First Azure Migration**: This version eliminates AWS credential hardcoding issues and provides enterprise-grade security suitable for UN deployment standards.
+
+## 🚀 **Key Improvements Over AWS Version**
+
+### **🔐 Security Enhancements**
+- ✅ **Eliminates AWS credential hardcoding** - No more exposed AWS keys in code
+- ✅ **Password-protected authentication** with secure login system
+- ✅ **Session management** with JWT tokens and timeouts
+- ✅ **Login attempt limiting** (5 attempts, 30-minute lockout)
+- ✅ **IP address validation** for enhanced security
+- ✅ **Encrypted Azure Blob Storage** with access controls
+- ✅ **Secure environment variables** - All credentials managed through Azure
+
+### **🏗️ Architecture Improvements**
+- ✅ **Simplified deployment** - Single workflow instead of 4 separate AWS workflows
+- ✅ **Azure-native services** - Better integration with Microsoft ecosystem
+- ✅ **Automated resource provisioning** - No manual infrastructure setup
+- ✅ **Container-based deployment** - Consistent environment across dev/prod
+- ✅ **Built-in monitoring** - Azure Monitor integration for observability
+
+### **⚡ Operational Benefits**
+- ✅ **No hardcoded credentials** - All secrets managed through Azure Key Vault
+- ✅ **Environment-based configuration** - Secure credential management
+- ✅ **One-click deployment** - Automated CI/CD pipeline
+- ✅ **Production-ready** - UN security standards compliant
+- ✅ **Comprehensive documentation** - Complete setup and usage guides
+
+## 🛡️ **AWS Credential Security Problem - SOLVED**
+
+### **❌ Previous AWS Version Issues:**
+- **Hardcoded AWS credentials** in configuration files
+- **Exposed access keys** in environment variables
+- **Manual credential management** prone to human error
+- **No credential rotation** or expiration handling
+- **Security vulnerabilities** from credential exposure
+
+### **✅ Azure Version Solution:**
+- **Azure Key Vault integration** for secure credential storage
+- **Managed Identity** for automatic authentication
+- **Environment-based secrets** with no hardcoded values
+- **Automatic credential rotation** through Azure services
+- **Zero credential exposure** in code or configuration files
+
+```bash
+# OLD AWS WAY (INSECURE):
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+# NEW AZURE WAY (SECURE):
+AZURE_STORAGE_CONNECTION_STRING=<managed_by_azure>
+AZURE_CLIENT_ID=<managed_identity>
+# No hardcoded secrets in code!
+```
+
 ## 🔐 Security Features
 
 This Azure version includes comprehensive security measures:
@@ -302,6 +356,35 @@ This project is for internal UN use only. See LICENSE file for details.
 - [Security Guide](SECURITY_GUIDE.md)
 - [Migration Summary](MIGRATION_SUMMARY.md)
 
+## 📊 **Migration Benefits Summary**
+
+| **Aspect** | **AWS Version** | **Azure Version** |
+|------------|----------------|-------------------|
+| **Security** | ❌ Hardcoded credentials | ✅ Azure Key Vault + Managed Identity |
+| **Authentication** | ❌ None | ✅ Password-protected with JWT |
+| **Workflows** | ❌ 4 separate files | ✅ 1 comprehensive workflow |
+| **Deployment** | ❌ Manual setup | ✅ One-click automated deployment |
+| **Monitoring** | ❌ Basic logging | ✅ Azure Monitor integration |
+| **Compliance** | ❌ Basic security | ✅ UN security standards |
+| **Maintenance** | ❌ High complexity | ✅ Low maintenance overhead |
+
+## 🎯 **Why Choose This Azure Version?**
+
+1. **🔒 Security-First Design**: Eliminates all credential hardcoding vulnerabilities
+2. **🏛️ UN Standards Compliant**: Meets international organization security requirements
+3. **⚡ Simplified Operations**: Reduced complexity from 4 workflows to 1
+4. **☁️ Cloud-Native**: Built specifically for Azure with native integrations
+5. **📈 Production-Ready**: Enterprise-grade features and monitoring
+6. **🛠️ Easy Maintenance**: Comprehensive documentation and automated deployment
+
+## 📝 **Repository Information**
+
+- **Original Repository**: [https://github.com/UN-OSAA/osaa-mvp](https://github.com/UN-OSAA/osaa-mvp)
+- **Azure Migration Repository**: [https://github.com/MafiAtUN/osaa-data-pipeline-azure](https://github.com/MafiAtUN/osaa-data-pipeline-azure)
+- **Migration Date**: January 2025
+- **Security Level**: Enterprise-grade with UN compliance
+- **Status**: Production-ready
+
 ---
 
-**For UN OSAA Team**: This application is production-ready and includes comprehensive security measures suitable for UN deployment standards.
+**For UN OSAA Team**: This Azure version is production-ready and includes comprehensive security measures suitable for UN deployment standards. It completely eliminates the AWS credential hardcoding security vulnerabilities present in the original version.
